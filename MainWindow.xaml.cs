@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,14 +31,23 @@ namespace Word
 
         private void Open_Word_Click(object sender, RoutedEventArgs e)
         {
-            Redactor redactor = new Redactor();
-            redactor.Show();
-            this.Close();
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Word Document (*.docx)|*.docx|Rich Text Format (*.rtf)|*.rtf|All files (*.*)|*.*";
+            if (openFileDialog.ShowDialog() == true)
+            {
+                Redactor redactor = new Redactor();
+                redactor.LoadFile(openFileDialog.FileName);
+                redactor.Show();
+                this.Close();
+            }
         }
+
 
         private void Create_Word_Click(object sender, RoutedEventArgs e)
         {
-            
+            Redactor redactor = new Redactor();
+            redactor.Show();
+            this.Close();
         }
 
     }

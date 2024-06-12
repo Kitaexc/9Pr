@@ -2,14 +2,8 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Documents;
-using DocumentFormat.OpenXml;
-using DocumentFormat.OpenXml.Packaging;
-using OpenXmlParagraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
-using OpenXmlRun = DocumentFormat.OpenXml.Wordprocessing.Run;
-using OpenXmlBody = DocumentFormat.OpenXml.Wordprocessing.Body;
-using OpenXmlText = DocumentFormat.OpenXml.Wordprocessing.Text;
-using DocumentFormat.OpenXml.Wordprocessing;
-using System.Windows.Controls;
+using Spire.Doc;
+using Spire.Doc.Documents;
 
 namespace Word
 {
@@ -21,6 +15,73 @@ namespace Word
             this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             this.MinWidth = 560;
             this.MinHeight = 600;
+        }
+
+        public void LoadFile(string filePath)
+        {
+            string fileExtension = Path.GetExtension(filePath).ToLower();
+            if (fileExtension == ".rtf")
+            {
+                LoadRtfFile(filePath);
+            }
+            else if (fileExtension == ".docx")
+            {
+                LoadDocxFile(filePath);
+            }
+            else
+            {
+                MessageBox.Show("Unsupported file format", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadRtfFile(string filePath)
+        {
+            TextRange range = new TextRange(RichTextBox.Document.ContentStart, RichTextBox.Document.ContentEnd);
+            using (FileStream fileStream = new FileStream(filePath, FileMode.Open))
+            {
+                range.Load(fileStream, DataFormats.Rtf);
+            }
+        }
+
+        private void LoadDocxFile(string filePath)
+        {
+            // Создание нового документа и загрузка содержимого из файла
+            Document document = new Document();
+            document.LoadFromFile(filePath);
+
+            // Очистка текущего содержимого RichTextBox
+            RichTextBox.Document.Blocks.Clear();
+
+            // Перебор всех разделов документа
+            foreach (Spire.Doc.Section section in document.Sections)
+            {
+                // Перебор всех параграфов в каждом разделе
+                foreach (Spire.Doc.Documents.Paragraph paragraph in section.Paragraphs)
+                {
+                    // Создание нового абзаца
+                    System.Windows.Documents.Paragraph newParagraph = new System.Windows.Documents.Paragraph();
+
+                    // Перебор всех элементов в параграфе
+                    foreach (DocumentObject docObject in paragraph.ChildObjects)
+                    {
+                        // Если элемент является текстом
+                        if (docObject is Spire.Doc.Fields.TextRange textRange)
+                        {
+                            Run run = new Run(textRange.Text);
+
+                            // Применение форматирования
+                            run.FontWeight = textRange.CharacterFormat.Bold ? FontWeights.Bold : FontWeights.Normal;
+                            run.FontStyle = textRange.CharacterFormat.Italic ? FontStyles.Italic : FontStyles.Normal;
+                            run.TextDecorations = textRange.CharacterFormat.UnderlineStyle != UnderlineStyle.None ? TextDecorations.Underline : null;
+
+                            newParagraph.Inlines.Add(run);
+                        }
+                    }
+
+                    // Добавление абзаца в RichTextBox
+                    RichTextBox.Document.Blocks.Add(newParagraph);
+                }
+            }
         }
 
         private void Save_Click(object sender, RoutedEventArgs e)
@@ -49,7 +110,7 @@ namespace Word
         {
             using (FileStream fileStream = new FileStream(fileName, FileMode.Create))
             {
-                TextRange range = new TextRange(RichTextBox.Document.ContentStart, RichTextBox.Document.ContentEnd);
+                System.Windows.Documents.TextRange range = new System.Windows.Documents.TextRange(RichTextBox.Document.ContentStart, RichTextBox.Document.ContentEnd);
                 range.Save(fileStream, DataFormats.Rtf);
             }
             MessageBox.Show("Файл успешно сохранен как RTF!", "Сохранение", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -57,28 +118,30 @@ namespace Word
 
         private void SaveAsDocx(string fileName)
         {
-            using (WordprocessingDocument wordDoc = WordprocessingDocument.Create(fileName, WordprocessingDocumentType.Document))
-            {
-                MainDocumentPart mainPart = wordDoc.AddMainDocumentPart();
-                mainPart.Document = new Document();
-                OpenXmlBody body = new OpenXmlBody();
+            // Создание нового документа
+            Document document = new Document();
 
-                TextRange textRange = new TextRange(RichTextBox.Document.ContentStart, RichTextBox.Document.ContentEnd);
-                OpenXmlParagraph para = new OpenXmlParagraph();
-                OpenXmlRun run = new OpenXmlRun();
-                run.Append(new OpenXmlText(textRange.Text));
-                para.Append(run);
-                body.Append(para);
+            // Создание нового раздела и добавление его в документ
+            Spire.Doc.Section section = document.AddSection();
 
-                mainPart.Document.Append(body);
-                mainPart.Document.Save();
-            }
+            // Создание нового абзаца
+            Spire.Doc.Documents.Paragraph paragraph = section.AddParagraph();
+
+            // Получение текста из RichTextBox
+            System.Windows.Documents.TextRange textRange = new System.Windows.Documents.TextRange(RichTextBox.Document.ContentStart, RichTextBox.Document.ContentEnd);
+
+            // Добавление текста в абзац
+            paragraph.AppendText(textRange.Text);
+
+            // Сохранение документа
+            document.SaveToFile(fileName, FileFormat.Docx);
+
             MessageBox.Show("Файл успешно сохранен как DOCX!", "Сохранение", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            SendWindow sending = new SendWindow();
+            SendWindow sending = new SendWindow(RichTextBox);
             sending.Show();
         }
     }
